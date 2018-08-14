@@ -1,0 +1,10 @@
+string name
+string current_action
+float32 movement_speed
+Pose pose
+Vector3 size
+int8[] capabilities
+string agent_type
+float32 construction_speed
+bool is_at_task
+string current_task

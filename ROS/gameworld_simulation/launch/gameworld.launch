@@ -1,0 +1,14 @@
+<!--
+
+-->
+
+<launch>
+
+	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+		<param name="port" value="9080"/>
+		
+	</include>
+    <node name="gameworld_controller" pkg="gameworld_simulation" type="main.py" output="screen"/>
+    <!-- <node name="depth_image_converter" pkg="ros_bag_simulation" type="depth_image_converter.py" output="screen"/> -->
+	
+</launch>

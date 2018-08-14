@@ -1,0 +1,10 @@
+string name
+string description
+string task_type
+int8[] capabilities_needed
+Pose pose
+bool is_complete
+Pose start_pose
+Pose end_pose
+bool is_picked_up
+Agent agent_holding
