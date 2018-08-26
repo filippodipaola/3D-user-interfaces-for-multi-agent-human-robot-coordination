@@ -10,6 +10,7 @@ class Task():
         self.capabilties_needed = capabilties_needed
         self.pose = pose
         self.is_complete = False
+        self.assigned_agent = []
 
     def __str__(self):
         return "Task name: %s, Description: %s, Capabilities needed: %s, Current Position: %s" % (self.name,
@@ -61,6 +62,17 @@ class ConstructionTask(Task):
         self.is_complete = True
         return True
 
+class MoveTask(Task):
+    def __init__(self, name, description, capabilties_needed=[capEnum.drive], end_pose=Pose(), agent=None):
+        Task.__init__(self, name, description, capabilties_needed, end_pose)
+        self.end_pose = end_pose
+        self.agent = agent
+
+
+    def is_complete(self):
+        self.is_complete = self.agent.get_pose().position == self.end_pose.position
+        return self.arrived
+
 
 class TransportTask(Task):
 
@@ -84,8 +96,13 @@ class TransportTask(Task):
 
 
     def pick_up(self, agent):
-        self.agent_holding = agent
-        self.is_picked_up = True
+        if agent.pose.position == self.pose.position:
+            self.agent_holding = agent
+            self.is_picked_up = True
+            return True;
+        else:
+            print("Agent %s is not at the package, cannot pick it up!" %agent.name)
+            return False
 
     def dropped(self):
         self.pose.position = self.agent_holding.pose.position

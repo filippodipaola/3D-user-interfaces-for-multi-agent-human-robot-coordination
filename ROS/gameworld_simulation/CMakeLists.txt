@@ -59,6 +59,7 @@ add_message_files(
   Agent.msg
   TransportTask.msg
   ConstructionTask.msg
+  UserInput.msg
 )
 
 ## Generate services in the 'srv' folder

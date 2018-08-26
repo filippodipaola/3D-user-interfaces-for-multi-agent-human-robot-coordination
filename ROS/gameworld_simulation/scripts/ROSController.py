@@ -3,7 +3,11 @@ from gameworld_simulation.msg import Agent as AgentMsg
 from gameworld_simulation.msg import ConstructionTask as ConTask
 from gameworld_simulation.msg import TransportTask as TransTask
 from gameworld_simulation.msg import Vector3
+from Timer import Timer
+import time
+from geometry_msgs.msg import Pose
 import Agents
+from Agents import TransportAgent
 import rospy
 import Tasks
 from std_msgs.msg import String
@@ -16,19 +20,43 @@ class ROSController():
         self.transport_task_publisher = rospy.Publisher('gameworld/transport_tasks', TransTask, queue_size=25)
         self.construct_task_publisher = rospy.Publisher('gameworld/construct_tasks', ConTask, queue_size=25)
         self.updatemsg_publisher = rospy.Publisher('gameworld/update_messages', String, queue_size=10)
+        self.unity_subscriber = rospy.Subscriber('Unity3D/update_message', String, self.update_message_subscriber)
+        self.user_input_subscriber = rospy.Subscriber('Unity3D/user_input', String, self.user_input_subscriber)
+        self.game_start = False
+        self.got_end_confirmation = False
+        self.recieved_move_message = False
+        self.recieved_assign_message = False
+        self.user_assign_task = ["agent_id", "task_id"]
+        self.user_assign_move = ["agent_id", "pose"]
+        print("ROS Controller has started, waiting for message to be recieved from UNITY")
 
 
 
     def publish_update_message(self, message):
         self.updatemsg_publisher.publish(message)
 
+    def update_message_subscriber(self, message):
+        string_message = message.data
+        print("Message RECIEVED from subscriber: %s" % string_message)
+        if string_message == "start":
+            print("Start message recieved from UNITY, starting simulation.")
+            self.game_start = True
+            msg = String()
+            msg.data = "start command recieved"
+            self.publish_update_message(msg)
+        if string_message == "pause":
+            self.game_start = False
+
+        if string_message == "finished confirmed" :
+            self.got_end_confirmation = True;
 
     def publish_tasks(self, tasks):
         for t in tasks:
             if isinstance(t, Tasks.ConstructionTask):
                 self.construct_task_publisher.publish(self.task_message_constructor(t))
-            elif isinstance(task, Tasks.TransportTask):
+            elif isinstance(t, Tasks.TransportTask):
                 self.transport_task_publisher.publish(self.task_message_constructor(t))
+            time.sleep(0.001)
     #TODO Need to test if this can work with just a task message, instead of two different messages.
     def task_message_constructor(self, task):
         if isinstance(task, Tasks.ConstructionTask):
@@ -48,7 +76,7 @@ class ROSController():
             task_message.task_type = "TransportTask"
             task_message.start_pose = task.start_pose
             task_message.end_pose = task.end_pose
-            task_message.agent_holding = task.agent_holding
+                #task_message.agent_holding = TransportAgent("None", pose=fakePose)
         return task_message
 
 
@@ -56,6 +84,7 @@ class ROSController():
     def publish_agents(self, agents):
         for a in agents:
             self.agent_publisher.publish(self.agent_message_constructor(a))
+            time.sleep(0.001)
 
     def agent_message_constructor(self, agent):
         agent_message = AgentMsg()
@@ -77,8 +106,23 @@ class ROSController():
             agent_message.construction_speed = -1.0
 
         agent_message.is_at_task = agent.is_at_task
-        agent_message.current_task = agent.get_task().__str__()
+        if not agent.task_queue.is_empty():
+            agent_message.current_task = agent.get_task().name
+        else:
+            agent_message.current_task = "None"
         return agent_message
 
+    def user_input_subscriber(self, message):
+        timer = Timer()
+        print ("GOT USER INPUT: %s" % message)
+        user_input = message.data
+        split_input = user_input.split('|')
+        if split_input[0] == "MOVE":
+            self.recieved_move_message = True
+            print [split_input[1], split_input[2].split(",")]
+            self.user_assign_move = [split_input[1], split_input[2].split(",")]
+        if split_input[0] == "ASSIGN":
+            self.recieved_assign_message = True
+            self.user_assign_task = [split_input[1], split_input[2]]
 
 
