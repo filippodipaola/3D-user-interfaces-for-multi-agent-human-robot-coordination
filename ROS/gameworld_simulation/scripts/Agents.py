@@ -5,6 +5,7 @@ from Tasks import MoveTask
 import math
 from CapabilitiesEnums import CapabiltiesEnums as capEnum
 from tf.transformations import quaternion_from_euler
+from ROSController import ROSController
 """
 This class is used as a super class to all agents in gameworld.
 Its intention is to lightly recreate a real world robot which
@@ -28,6 +29,7 @@ class Agent():
         self.current_action = "idle"
         self.movement_speed = movement_speed
         self.is_at_task = False
+        self.ros_controller = ROSController()
 
 
     def get_pose(self):
@@ -93,6 +95,7 @@ class Agent():
     def complete_current_task(self):
         if self.task_queue.peek().is_completed():
             print("Current task %s being done by %s has been completed." %(self.task_queue.peek().name, self.name))
+            self.ros_controller.publish_string_update_message("%s has been completed by %s" % (self.task_queue.peek().name, self.name))
             self.task_queue.dequeue()
             self.is_at_task = False
             self.current_action = "completed task"
@@ -168,10 +171,10 @@ class TransportAgent(Agent):
                 print("Agent %s has no tasks in its queue, therefore it cannot transport anything." % self.name)
                 self.current_action = "idle"
             return False
-        if not isinstance(self.get_task(), MoveTask):
-            if self.get_task().is_picked_up and self.get_task().agent_holding != self:
-                print("Task %s has already been picked up, removing this task from agent %s" % (self.get_task().name, self.name))
-                self.task_queue.dequeue()
+        #if not isinstance(self.get_task(), MoveTask):
+            #if self.get_task().is_picked_up and self.get_task().agent_holding != self:
+             #   print("Task %s has already been picked up, removing this task from agent %s" % (self.get_task().name, self.name))
+              #  self.task_queue.dequeue()
         if not self.is_at_task:
             if self.current_action != "moving to task":
                 print("Agent %s is not at the location of the task, moving to task" % self.name)
@@ -186,8 +189,10 @@ class TransportAgent(Agent):
         if not isinstance(self.get_task(), MoveTask):
             if not self.task_queue.peek().is_picked_up:
                 self.task_queue.peek().pick_up(self)
+                print("AGENT PICKED UP DILIVERY!! WHY !")
                 return False
             if self.move_towards_delivery():
+                print("AGENT COMPLETED DILIVERY, THIS TASK SHOULD NO LONGER EXIST.")
                 self.complete_current_task()
                 return True
             else:

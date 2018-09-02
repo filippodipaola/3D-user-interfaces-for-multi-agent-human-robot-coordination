@@ -11,11 +11,13 @@ import math
 from ROSController import ROSController
 import copy
 from Timer import Timer
+import time
 import sys
 class GameWorld():
 
     def __init__(self, size=(100, 100), agents=[], tasks=TaskQueue(), AI_ON=True):
         self.size = size
+        self.ai_on = False;
         self.agents = agents
         self.tasks = tasks
         self.map = np.ones(size)
@@ -23,7 +25,9 @@ class GameWorld():
         self.world_task_queue = TaskQueue()
         self.generate_agents()
         self.generate_world_tasks()
-        #self.assign_tasks()
+        if(self.ai_on):
+            self.assign_tasks()
+
         self.ros_controller = ROSController()
         self.restart = False
         #self.agents[0].task_queue.prioritise(self.world_task_queue.get_queue()[0])
@@ -33,7 +37,7 @@ class GameWorld():
 
         # Prints the tasks in each of the agent queues for debugging reasons.
         #for agent in self.agents:
-        #    print ("Agent: %s has the tasks: %s" % (agent.name, ",".join([t.name for t in agent.task_queue.get_queue()])))
+         #   print ("Agent: %s has the tasks: %s" % (agent.name, ",".join([t.name for t in agent.task_queue.get_queue()])))
 
         if not self.world_task_queue.is_empty():
             #print("Publishing tasks")
@@ -43,6 +47,8 @@ class GameWorld():
 
         ## This checks if the game is meant to run yet
         if self.ros_controller.game_start:
+            if(self.ai_on):
+                timer = Timer()
             self.check_scenario_complete()
             for agent in self.agents:
                 agent.do_work()
@@ -102,6 +108,7 @@ class GameWorld():
             self.ros_controller.publish_update_message(message)
             message.data = "end time|%s" %timer.get_elasped_time()
             self.ros_controller.publish_update_message(message)
+            time.sleep(0.05)
         print("All assigned tasks have been completed!")
         self.restart = True
 
@@ -129,7 +136,21 @@ class GameWorld():
         task.assigned_agent = agent
         return nearest_task
 
-    def get_compabitible_task_for_agent(self, agent):
+    def sort_nearest_tasks(self, agent, queue):
+        compatible_list = [task for task in queue.queue if task.is_agent_compatible(agent)]
+        dist_list = []
+        for task in compatible_list:
+            dist = math.sqrt(math.pow(task.pose.position.x - agent.pose.position.x, 2)
+                         + math.pow(task.pose.position.y - agent.pose.position.y, 2)
+                         + math.pow(task.pose.position.z - agent.pose.position.z, 2))
+            dist_list.append(dist)
+        zipped = zip(dist_list, compatible_list)
+        zipped.sort()
+        dist_list, sorted_list = zip(*zipped)
+        queue.queue = list(sorted_list)
+        return queue
+
+    def get_compabitible_task_for_agent(self, agent, queue):
         compatible_task_list = TaskQueue()
         for task in self.tasks.get_queue():
             if task.is_agent_compatible(agent):
@@ -146,9 +167,10 @@ class GameWorld():
 
     def assign_tasks(self):
         for agent in self.agents:
-            agent.task_queue = self.get_compabitible_task_for_agent(agent)
-            if agent.task_queue:
-                agent.set_current_task(self.get_nearest_tasks(agent))
+            # Unneccessary but whatever.
+            task_queue = copy.copy(self.world_task_queue)
+            agent.task_queue = self.sort_nearest_tasks(agent, task_queue)
+
 
 
     def generate_agents(self, num_of_agents=0):
@@ -182,9 +204,15 @@ class GameWorld():
         self.add_task(ConstructionTask('Construction Task 5', "Construction required in this area",
                                        pose=self.pose_constructor(65, 40, 0, 0, 0, 0, 1)))
         self.add_task(ConstructionTask('Construction Task 6', "Construction required in this area",
-                                       pose=self.pose_constructor(15, 75, 0, 0, 0, 0, 1)))
+                                       pose=self.pose_constructor(15, 50, 0, 0, 0, 0, 1)))
         self.add_task(TransportTask('Transport Task 1', "Transport required",
                                        pose=self.pose_constructor(45, 65, 0, 0, 0, 0, 1), end_pose=self.pose_constructor(10, 80, 0, 0, 0, 0, 1)))
+        self.add_task(TransportTask('Transport Task 2', "Transport required",
+                                    pose=self.pose_constructor(15, 75, 0, 0, 0, 0, 1),
+                                    end_pose=self.pose_constructor(30, 10, 0, 0, 0, 0, 1)))
+        self.add_task(TransportTask('Transport Task 3', "Transport required",
+                                    pose=self.pose_constructor(55, 70, 0, 0, 0, 0, 1),
+                                    end_pose=self.pose_constructor(35, 80, 0, 0, 0, 0, 1)))
 
 
 

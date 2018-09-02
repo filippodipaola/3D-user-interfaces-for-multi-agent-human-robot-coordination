@@ -7,12 +7,20 @@ from Timer import Timer
 import time
 from geometry_msgs.msg import Pose
 import Agents
-from Agents import TransportAgent
 import rospy
 import Tasks
 from std_msgs.msg import String
 
+class Singleton(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
 class ROSController():
+    __metaclass__ = Singleton
 
     def __init__(self):
         rospy.init_node('gameworld_controller',anonymous=True)
@@ -31,6 +39,11 @@ class ROSController():
         print("ROS Controller has started, waiting for message to be recieved from UNITY")
 
 
+    def publish_string_update_message(self, string):
+        my_message = String()
+        complete_string = "display message|" + string
+        my_message.data = complete_string
+        self.publish_update_message(my_message)
 
     def publish_update_message(self, message):
         self.updatemsg_publisher.publish(message)
@@ -47,7 +60,8 @@ class ROSController():
         if string_message == "pause":
             self.game_start = False
 
-        if string_message == "finished confirmed" :
+        if string_message == "finished confirmed":
+            print("UNITY HAS CONFIRMED THAT IT IS FINISHED!")
             self.got_end_confirmation = True;
 
     def publish_tasks(self, tasks):
@@ -56,7 +70,7 @@ class ROSController():
                 self.construct_task_publisher.publish(self.task_message_constructor(t))
             elif isinstance(t, Tasks.TransportTask):
                 self.transport_task_publisher.publish(self.task_message_constructor(t))
-            time.sleep(0.001)
+            time.sleep(0.005)
     #TODO Need to test if this can work with just a task message, instead of two different messages.
     def task_message_constructor(self, task):
         if isinstance(task, Tasks.ConstructionTask):
@@ -84,7 +98,7 @@ class ROSController():
     def publish_agents(self, agents):
         for a in agents:
             self.agent_publisher.publish(self.agent_message_constructor(a))
-            time.sleep(0.001)
+            time.sleep(0.005)
 
     def agent_message_constructor(self, agent):
         agent_message = AgentMsg()
@@ -124,5 +138,6 @@ class ROSController():
         if split_input[0] == "ASSIGN":
             self.recieved_assign_message = True
             self.user_assign_task = [split_input[1], split_input[2]]
+            self.publish_string_update_message("%s has been assigned to %s." % (split_input[1], split_input[2]))
 
 
